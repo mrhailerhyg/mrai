@@ -1,0 +1,57 @@
+// ==UserScript==
+// @name         Auto-play YouTube videos on Google Sites
+// @namespace    http://tampermonkey.net/
+// @version      0.1
+// @description  Automatically play YouTube videos on Google Sites
+// @author       You
+// @match        ://sites.google.com/*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+  'use strict';
+
+  // Get the nonce value from the CSP header
+  var nonce = document.querySelector('meta[property="csp-nonce"]').getAttribute('content');
+
+  function playNextVideo(index) {
+    var iframes = document.querySelectorAll('iframe[src*="youtube.com"]');
+    var iframe = iframes[index];
+    var videoId = iframe.src.match(/v=([^&]+)/)[1];
+
+    var player = new YT.Player(iframe, {
+      videoId: videoId,
+      events: {
+        'onReady': function(event) {
+          event.target.playVideo();
+        },
+        'onStateChange': function(event) {
+          if (event.data === YT.PlayerState.ENDED) {
+            playNextVideo(index + 1);
+          }
+        }
+      }
+    });
+  }
+
+  function loadYouTubeAPI() {
+    var script = document.createElement('script');
+    script.nonce = nonce;
+    script.src = 'https://www.youtube.com/iframe_api';
+    document.body.appendChild(script);
+    script.onload = function() {
+      setTimeout(playNextVideo, 10000, 0);
+    };
+  }
+
+  function waitForIframes() {
+    var iframes = document.querySelectorAll('iframe[src*="youtube.com"]');
+    if (iframes.length > 0) {
+      loadYouTubeAPI();
+    } else {
+      setTimeout(waitForIframes, 1000);
+    }
+  }
+
+  waitForIframes();
+})();
